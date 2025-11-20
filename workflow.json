@@ -1,0 +1,261 @@
+{
+  "name": "AI Social Caption Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "Manual Trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "={{ $env.SOCIAL_CONTENT_SHEET_ID || 'YOUR_SHEET_ID' }}",
+        "range": "Social_Content!A:F",
+        "options": {
+          "returnAll": true,
+          "keyRow": 1,
+          "dataProperty": "products",
+          "dataStartRow": 2,
+          "valueRenderMode": "UNFORMATTED_VALUE"
+        }
+      },
+      "id": "Get Products",
+      "name": "Get Products",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -360,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google-sheets-credential-id",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.Status || $json.D }}",
+              "operation": "equal",
+              "value2": "Needs Caption"
+            }
+          ]
+        }
+      },
+      "id": "Filter Needs Caption",
+      "name": "Filter Needs Caption",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 5
+      },
+      "id": "Split In Batches",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "headerParametersJson": "{\n  \"Content-Type\": \"application/json\",\n  \"HTTP-Referer\": \"https://yourdomain.example\",\n  \"X-Title\": \"n8n-ai-social-workflow\",\n  \"Authorization\": \"Bearer {{$credentials.openrouterApi.apiKey}}\"\n}",
+        "bodyParametersJson": "{\n  \"model\": \"google/gemini-flash-1.5\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You help a premium honey and wellness brand write short, natural-sounding social captions.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Product: {{$json['ProductName'] || $json['A']}}\\nDescription: {{$json['ShortDescription'] || $json['B']}}\\n\\nWrite:\\n1) One short Instagram caption (max 2 sentences) with a warm, natural tone.\\n2) One line with 8-12 relevant hashtags, space-separated.\\n\\nReturn ONLY valid JSON:\\n{\\n  \\\"caption\\\": \\\"...\\\",\\n  \\\"hashtags\\\": \\\"...\\\"\\n}\"\n    }\n  ]\n}"
+      },
+      "id": "Generate Caption (OpenRouter)",
+      "name": "Generate Caption (OpenRouter)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        360,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "openrouter-api-key-id",
+          "name": "OpenRouter (Header)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "return items.map(item => {\n  const raw = item.json?.choices?.[0]?.message?.content || '';\n  let parsed;\n  try {\n    parsed = JSON.parse(raw);\n  } catch (error) {\n    parsed = { caption: raw, hashtags: '' };\n  }\n  return {\n    json: {\n      ...item.json,\n      aiCaption: parsed.caption || '',\n      aiHashtags: parsed.hashtags || ''\n    }\n  };\n});"
+      },
+      "id": "Parse AI Result",
+      "name": "Parse AI Result",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": "={{ $env.SOCIAL_CONTENT_SHEET_ID || 'YOUR_SHEET_ID' }}",
+        "range": "Social_Content!A:F",
+        "options": {
+          "valueInputMode": "USER_ENTERED",
+          "updateBehavior": "overwrite"
+        },
+        "keyRow": 1,
+        "keyName": "rowNumber"
+      },
+      "id": "Update Product Row",
+      "name": "Update Product Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        840,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google-sheets-credential-id",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "marketing.bot@yourdomain.example",
+        "toEmail": "social@yourdomain.example",
+        "subject": "New AI captions are ready",
+        "text": "={{$item(0).$node['Split In Batches'].context[\"noItemsLeft\"] ? 'Workflow completed – check the Social_Content sheet for new captions.' : 'Batch completed.'}}"
+      },
+      "id": "Notify Marketing",
+      "name": "Notify Marketing",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        120,
+        60
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credential-id",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Products": {
+      "main": [
+        [
+          {
+            "node": "Filter Needs Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Needs Caption": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "Generate Caption (OpenRouter)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Marketing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Caption (OpenRouter)": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Result": {
+      "main": [
+        [
+          {
+            "node": "Update Product Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Product Row": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "00000000-0000-0000-0000-000000000000",
+  "id": "AI Social Caption Workflow",
+  "meta": {
+    "instanceId": "demo"
+  }
+}
