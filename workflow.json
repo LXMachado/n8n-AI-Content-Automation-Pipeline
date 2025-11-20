@@ -243,7 +243,7 @@
           {
             "node": "Split In Batches",
             "type": "main",
-            "index": 1
+            "index": 0
           }
         ]
       ]
