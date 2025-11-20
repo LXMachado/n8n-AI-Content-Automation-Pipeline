@@ -1,6 +1,6 @@
 # n8n AI Social Captions Workflow
 
-This repository contains a demo workflow for an Organics Company that showcases how I combine n8n, Google Sheets, and OpenRouter to automate AI-powered social captions. The automation pulls product rows that still need copy, calls an AI model for short-form captions + hashtag strings, writes the results back to the same sheet, and can optionally alert marketing once everything is ready.
+This repository contains a N8N workflow that showcases how I combine n8n, Google Sheets, and OpenRouter to automate AI-powered social captions. The automation pulls product rows that still need copy, calls an AI model for short-form captions + hashtag strings, writes the results back to the same sheet, and can optionally alert marketing once everything is ready.
 
 ## Architecture at a Glance
 
