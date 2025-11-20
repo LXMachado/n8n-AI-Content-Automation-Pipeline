@@ -97,15 +97,6 @@ The workflow fills `Caption`, `Hashtags`, and flips `Status` to `Ready` once AI 
 
 - Export the final workflow as `workflow.json` via n8n → *Workflow → Download*.
 - Take a zoomed-out screenshot of the full workflow and save it as `screenshots/workflow-overview.png`.
-- Publish the repo (e.g., GitHub) and reference it in your CV/cover letter:
-  - **Projects:** “AI Social Caption Workflow (n8n + Google Sheets + OpenRouter)”
-  - **Cover Letter:** “Built an n8n workflow that generates product captions/hashtags from Sheets using OpenRouter.”
-
-## Presentation Tips
-
-- During interviews, mention how you would extend the same approach to Shopify/Klaviyo or other marketing systems.
-- Highlight credential management: Google + OpenRouter keys live in n8n’s credential store, so the exported JSON stays secret-less.
-- Discuss potential enhancements: scheduling via Cron, fallbacks when descriptions are blank, rate-limit aware batching, or logging to BigQuery/Supabase for analytics.
 
 ## Repository Contents
 
